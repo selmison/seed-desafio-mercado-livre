@@ -1,0 +1,5 @@
+.dbdata/
+
+# Editor / IDEs
+.idea/
+.vscode/
