@@ -1,4 +1,5 @@
 .dbdata/
+.tmp/
 
 # Editor / IDEs
 .idea/
