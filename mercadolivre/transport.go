@@ -3,7 +3,6 @@ package mercadolivre
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -12,19 +11,15 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var (
-	// ErrBadRouting is returned when an expected path variable is missing.
-	// It always indicates programmer error.
-	ErrBadRouting = errors.New("inconsistent mapping between route and handler (programmer error)")
-)
-
 // MakeHTTPHandler mounts all of the service endpoints into an http.Handler.
 // Useful in a usersvc server.
-func MakeHTTPHandler(s Service, logger Logger) http.Handler {
+func MakeHTTPHandler(svc Service, logger Logger) http.Handler {
 	r := mux.NewRouter()
-	e := MakeServerEndpoints(s)
+	e := MakeServerEndpoints(svc)
 	errorHandler := func(ctx context.Context, err error) {
-		logger.Errorf("transport error:", err)
+		if _, ok := err.(ValidationErrorsResponse); !ok {
+			logger.Errorf("transport error: %v", err)
+		}
 	}
 	options := []httptransport.ServerOption{
 		httptransport.ServerErrorHandler(transport.ErrorHandlerFunc(errorHandler)),
@@ -51,8 +46,7 @@ func decodeUserPostRequest(_ context.Context, r *http.Request) (request interfac
 
 // errorer is implemented by all concrete response types that may contain
 // errors. It allows us to change the HTTP response code without needing to
-// trigger an endpoint (transport-level) error. For more information, read the
-// big comment in endpoints.go.
+// trigger an endpoint (transport-level) error.
 type errorer interface {
 	error() error
 }
@@ -68,23 +62,31 @@ func encodePostResponse(ctx context.Context, w http.ResponseWriter, response int
 	return json.NewEncoder(w).Encode(response)
 }
 
-func encodeError(_ context.Context, err error, w http.ResponseWriter) {
+func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	if err == nil {
 		panic("encodeError with nil error")
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(codeFrom(err))
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if e, ok := err.(ValidationErrorsResponse); ok {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"msg":    e.Error(),
+			"errors": e,
+		})
+		return
+	}
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"error": err.Error(),
 	})
 }
 
 func codeFrom(err error) int {
+	if _, ok := err.(ValidationErrorsResponse); ok {
+		return http.StatusBadRequest
+	}
 	switch err {
 	case ErrNotFound:
 		return http.StatusNotFound
-	case ErrAlreadyExists:
-		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
 	}

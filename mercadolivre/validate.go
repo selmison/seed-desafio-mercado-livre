@@ -21,6 +21,18 @@ func init() {
 	}
 }
 
+type ValidationErrorsResponse []*ValidationErrorResponse
+
+type ValidationErrorResponse struct {
+	FailedField string `json:"failed_field"`
+	Condition   string `json:"condition"`
+	ActualValue string `json:"actual_value"`
+}
+
+func (v ValidationErrorsResponse) Error() string {
+	return ErrValidationFailed.Error()
+}
+
 // ShouldBeFuture is the validation function for validating if the current field
 // is time.Time and is after time.Now().
 func ShouldBeFuture(fl validator.FieldLevel) bool {

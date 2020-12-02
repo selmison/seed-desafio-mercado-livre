@@ -28,10 +28,6 @@ func NewHTTPServer(svc Service, logger Logger, config *Config) error {
 	if err != nil {
 		return err
 	}
-	// srv := &HTTPServer{
-	// 	Addr:    lnAddr.String(),
-	// }
-	// srv.registerHandlers()
 
 	router := MakeHTTPHandler(svc, logger)
 	loggingHandler := handlers.LoggingHandler(os.Stdout, router)

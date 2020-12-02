@@ -14,7 +14,7 @@ require (
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/stretchr/testify v1.6.1 // indirect
-	go.uber.org/multierr v1.6.0
+	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.16.0
 	gopkg.in/check.v1 v1.0.0-20201128035030-22ab2dfb190c // indirect
 )

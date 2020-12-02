@@ -2,14 +2,12 @@ package mercadolivre
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
-	"go.uber.org/multierr"
 )
 
 type Request interface {
@@ -17,8 +15,8 @@ type Request interface {
 }
 
 type UserRequest struct {
-	Name     string `validate:"required,email"`
-	Password string `validate:"required"`
+	Name     string `validate:"required,not_blank,email"`
+	Password string `validate:"required,not_blank"`
 }
 
 type UserResponse struct {
@@ -28,19 +26,20 @@ type UserResponse struct {
 
 func (u *UserRequest) Validate() error {
 	err := validate.Struct(u)
+	var errs ValidationErrorsResponse
 	if err != nil {
-		if vErrs, ok := err.(validator.ValidationErrors); ok {
-			var err error
-			for _, v := range vErrs {
-				err = multierr.Append(
-					err,
-					fmt.Errorf("the '%s' field %w", v.Namespace(), ErrIsNotValid),
-				)
+		if fieldError, ok := err.(validator.ValidationErrors); ok {
+			for _, v := range fieldError {
+				var element ValidationErrorResponse
+				element.FailedField = v.StructNamespace()
+				element.Condition = v.Tag()
+				element.ActualValue = v.Value().(string)
+				errs = append(errs, &element)
 			}
 		}
 	}
 	if err != nil {
-		return err
+		return errs
 	}
 	return nil
 }

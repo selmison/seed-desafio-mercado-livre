@@ -19,10 +19,10 @@ func MakeServerEndpoints(svc Service) Endpoints {
 }
 
 // MakeUserPostEndpoint returns an endpoint via the passed service.
-func MakeUserPostEndpoint(s Service) endpoint.Endpoint {
+func MakeUserPostEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(postUserRequest)
-		id, err := s.UserPost(ctx, req.User)
+		id, err := svc.UserPost(ctx, req.User)
 		return postResponse{
 			Id:  id,
 			Err: err,
