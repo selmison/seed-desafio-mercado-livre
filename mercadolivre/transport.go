@@ -9,16 +9,18 @@ import (
 	"github.com/go-kit/kit/transport"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 )
 
 // MakeHTTPHandler mounts all of the service endpoints into an http.Handler.
 // Useful in a usersvc server.
-func MakeHTTPHandler(svc Service, logger Logger) http.Handler {
+func (srv *HTTPServer) MakeHTTPHandler(svc Service) http.Handler {
 	r := mux.NewRouter()
 	e := MakeServerEndpoints(svc)
 	errorHandler := func(ctx context.Context, err error) {
 		if _, ok := err.(ValidationErrorsResponse); !ok {
-			logger.Errorf("transport error: %v", err)
+			st := srv.retrievStackTrace(err)
+			srv.logger.Errorf("%s%+v", err, st)
 		}
 	}
 	options := []httptransport.ServerOption{
@@ -76,7 +78,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		return
 	}
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"error": err.Error(),
+		"error": http.StatusText(http.StatusInternalServerError),
 	})
 }
 
@@ -90,4 +92,15 @@ func codeFrom(err error) int {
 	default:
 		return http.StatusInternalServerError
 	}
+}
+
+func (srv *HTTPServer) retrievStackTrace(err error) errors.StackTrace {
+	type stackTracer interface {
+		StackTrace() errors.StackTrace
+	}
+	e, ok := err.(stackTracer)
+	if !ok {
+		srv.logger.Error("err does not implement stackTracer")
+	}
+	return e.StackTrace()
 }

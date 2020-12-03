@@ -17,7 +17,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialize service: %v\n", err)
 	}
-	if err := mercadolivre.NewHTTPServer(svc, logger, &mercadolivre.Config{
+	if err, _ := mercadolivre.NewHTTPServer(svc, logger, &mercadolivre.Config{
 		Host: "localhost",
 		Port: 3333,
 	}); err != nil {

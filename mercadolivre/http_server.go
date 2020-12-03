@@ -10,33 +10,29 @@ import (
 	"github.com/gorilla/handlers"
 )
 
-const (
-	// ErrInvalidMethod is used if the HTTP method is not supported
-	ErrInvalidMethod = "Invalid method"
-)
-
 // HTTPServer is used to wrap an Service and expose it over an HTTP interface
-// type HTTPServer struct {
-// 	logger  Logger
-// 	Addr    string
-// }
+type HTTPServer struct {
+	logger Logger
+}
 
 // NewHTTPServer starts new HTTP server
-func NewHTTPServer(svc Service, logger Logger, config *Config) error {
+func NewHTTPServer(svc Service, logger Logger, config *Config) (error, *HTTPServer) {
 	addr := net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
 	lnAddr, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
-		return err
+		return err, nil
 	}
-
-	router := MakeHTTPHandler(svc, logger)
+	srv := &HTTPServer{
+		logger: logger,
+	}
+	router := srv.MakeHTTPHandler(svc)
 	loggingHandler := handlers.LoggingHandler(os.Stdout, router)
 	fmt.Printf("HTTP server listening on http://%s\n", lnAddr.String())
 	if err := http.ListenAndServe(lnAddr.String(), loggingHandler); err != nil {
-		return err
+		return err, nil
 	}
 
-	return nil
+	return nil, srv
 }
 
 // // registerHandlers is used to attach our handlers to the router

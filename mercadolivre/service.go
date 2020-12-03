@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"github.com/pkg/errors"
 )
 
 type Request interface {
@@ -73,20 +74,19 @@ func NewService(driverName, dsn string, logger Logger) (Service, error) {
 	}, nil
 }
 
-func (s *service) UserPost(ctx context.Context, user UserRequest) (id string, err error) {
-	insertUser := "INSERT INTO users (id, name, password, created_at) VALUES ($1, $2, $3, $4)"
+func (s *service) UserPost(ctx context.Context, user UserRequest) (string, error) {
+	insertUser := "INSERT ITO users (id, name, password, created_at) VALUES ($1, $2, $3, $4)"
 	now := time.Now()
 	layout := "2006-01-02 15:04:05"
-	id = uuid.New().String()
-	_, err = s.db.Exec(
+	id := uuid.New().String()
+	_, err := s.db.Exec(
 		insertUser,
 		id,
 		user.Name,
 		user.Password,
 		now.Format(layout))
 	if err != nil {
-		s.logger.Errorf("service.post_user: %v\n", err)
-		return
+		return "", errors.Wrap(err, "service.post_user")
 	}
-	return
+	return id, nil
 }

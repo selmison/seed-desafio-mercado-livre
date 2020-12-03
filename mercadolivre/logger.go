@@ -98,6 +98,7 @@ func NewLogger(level Level) Logger {
 		config = zap.NewProductionConfig()
 	}
 	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	config.DisableStacktrace = true
 	zapLogger, err := config.Build()
 	if err != nil {
 		log.Fatalf("could not initialize zap logger: %v", err)

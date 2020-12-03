@@ -23,9 +23,11 @@ func MakeUserPostEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(postUserRequest)
 		id, err := svc.UserPost(ctx, req.User)
+		if err != nil {
+			return nil, err
+		}
 		return postResponse{
-			Id:  id,
-			Err: err,
+			Id: id,
 		}, nil
 	}
 }
