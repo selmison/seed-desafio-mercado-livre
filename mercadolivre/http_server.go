@@ -8,31 +8,37 @@ import (
 	"strconv"
 
 	"github.com/gorilla/handlers"
+	"github.com/jmoiron/sqlx"
 )
 
-// HTTPServer is used to wrap an Service and expose it over an HTTP interface
-type HTTPServer struct {
+type httpServer struct {
+	db     *sqlx.DB
 	logger Logger
 }
 
 // NewHTTPServer starts new HTTP server
-func NewHTTPServer(svc Service, logger Logger, config *Config) (error, *HTTPServer) {
+func NewHTTPServer(svc Service, logger Logger, config *Config) error {
 	addr := net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
 	lnAddr, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
-		return err, nil
+		return err
 	}
-	srv := &HTTPServer{
+	dbx := sqlx.NewDb(config.DB, config.DriverName)
+	if err := dbx.Ping(); err != nil {
+		return err
+	}
+	srv := &httpServer{
+		db:     dbx,
 		logger: logger,
 	}
 	router := srv.MakeHTTPHandler(svc)
 	loggingHandler := handlers.LoggingHandler(os.Stdout, router)
 	fmt.Printf("HTTP server listening on http://%s\n", lnAddr.String())
 	if err := http.ListenAndServe(lnAddr.String(), loggingHandler); err != nil {
-		return err, nil
+		return err
 	}
 
-	return nil, srv
+	return nil
 }
 
 // // registerHandlers is used to attach our handlers to the router

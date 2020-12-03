@@ -12,9 +12,9 @@ type Endpoints struct {
 }
 
 // MakeServerEndpoints returns an Endpoints struct.
-func MakeServerEndpoints(svc Service) Endpoints {
+func (srv *httpServer) MakeServerEndpoints(svc Service) Endpoints {
 	return Endpoints{
-		UserPostEndpoint: ValidationMiddleware()(MakeUserPostEndpoint(svc)),
+		UserPostEndpoint: srv.ValidationMiddleware()(MakeUserPostEndpoint(svc)),
 	}
 }
 

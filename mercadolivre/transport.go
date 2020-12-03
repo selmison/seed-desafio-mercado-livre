@@ -14,9 +14,9 @@ import (
 
 // MakeHTTPHandler mounts all of the service endpoints into an http.Handler.
 // Useful in a usersvc server.
-func (srv *HTTPServer) MakeHTTPHandler(svc Service) http.Handler {
+func (srv *httpServer) MakeHTTPHandler(svc Service) http.Handler {
 	r := mux.NewRouter()
-	e := MakeServerEndpoints(svc)
+	e := srv.MakeServerEndpoints(svc)
 	errorHandler := func(ctx context.Context, err error) {
 		if _, ok := err.(ValidationErrorsResponse); !ok {
 			st := srv.retrievStackTrace(err)
@@ -94,7 +94,7 @@ func codeFrom(err error) int {
 	}
 }
 
-func (srv *HTTPServer) retrievStackTrace(err error) errors.StackTrace {
+func (srv *httpServer) retrievStackTrace(err error) errors.StackTrace {
 	type stackTracer interface {
 		StackTrace() errors.StackTrace
 	}
