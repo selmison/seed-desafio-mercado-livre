@@ -19,7 +19,7 @@ type Request interface {
 }
 
 type UserRequest struct {
-	Name     string `validate:"required,not_blank,email"`
+	Name     string `validate:"required,not_blank,email,should_be_unique"`
 	Password string `validate:"required,not_blank,min=6"`
 }
 
@@ -64,8 +64,9 @@ type User struct {
 }
 
 type service struct {
-	db     *sqlx.DB
-	logger Logger
+	validate *validator.Validate
+	db       *sqlx.DB
+	logger   Logger
 }
 
 // NewService creates a service with the necessary dependencies.
@@ -74,10 +75,18 @@ func NewService(db *sql.DB, driverName string, logger Logger) (Service, error) {
 	if err := dbx.Ping(); err != nil {
 		return nil, err
 	}
-	return &service{
-		db:     dbx,
-		logger: logger,
-	}, nil
+
+	svc := &service{
+		validate: validate,
+		db:       dbx,
+		logger:   logger,
+	}
+
+	if err := validate.RegisterValidation("should_be_unique", svc.ShouldBeUnique); err != nil {
+		logger.Fatal(err)
+	}
+
+	return svc, nil
 }
 
 // UserPost creates user.
