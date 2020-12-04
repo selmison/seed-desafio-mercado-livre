@@ -16,7 +16,7 @@ import (
 // Useful in a usersvc server.
 func (srv *httpServer) MakeHTTPHandler(svc Service) http.Handler {
 	r := mux.NewRouter()
-	e := srv.MakeServerEndpoints(svc)
+	e := MakeServerEndpoints(svc)
 	errorHandler := func(ctx context.Context, err error) {
 		if _, ok := err.(ValidationErrorsResponse); !ok {
 			st := srv.retrievStackTrace(err)
@@ -35,12 +35,27 @@ func (srv *httpServer) MakeHTTPHandler(svc Service) http.Handler {
 		options...,
 	))
 
+	r.Methods("POST").Path("/categories").Handler(httptransport.NewServer(
+		e.CategoryPostEndpoint,
+		decodeCategoryPostRequest,
+		encodePostResponse,
+		options...,
+	))
+
 	return r
 }
 
 func decodeUserPostRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
-	var req postUserRequest
-	if e := json.NewDecoder(r.Body).Decode(&req.User); e != nil {
+	var req UserRequest
+	if e := json.NewDecoder(r.Body).Decode(&req); e != nil {
+		return nil, e
+	}
+	return req, nil
+}
+
+func decodeCategoryPostRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
+	var req CategoryRequest
+	if e := json.NewDecoder(r.Body).Decode(&req); e != nil {
 		return nil, e
 	}
 	return req, nil

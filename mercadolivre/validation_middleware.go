@@ -7,7 +7,7 @@ import (
 )
 
 // ValidationMiddleware valides the requests
-func (srv *httpServer) ValidationMiddleware() endpoint.Middleware {
+func ValidationMiddleware() endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 			req := request.(Request)

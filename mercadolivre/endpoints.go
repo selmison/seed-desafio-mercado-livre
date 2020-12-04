@@ -8,21 +8,23 @@ import (
 
 // Endpoints collects all of the endpoints.
 type Endpoints struct {
-	UserPostEndpoint endpoint.Endpoint
+	UserPostEndpoint     endpoint.Endpoint
+	CategoryPostEndpoint endpoint.Endpoint
 }
 
 // MakeServerEndpoints returns an Endpoints struct.
-func (srv *httpServer) MakeServerEndpoints(svc Service) Endpoints {
+func MakeServerEndpoints(svc Service) Endpoints {
 	return Endpoints{
-		UserPostEndpoint: srv.ValidationMiddleware()(MakeUserPostEndpoint(svc)),
+		UserPostEndpoint:     ValidationMiddleware()(MakeUserPostEndpoint(svc)),
+		CategoryPostEndpoint: ValidationMiddleware()(MakeCategoryPostEndpoint(svc)),
 	}
 }
 
 // MakeUserPostEndpoint returns an endpoint via the passed service.
 func MakeUserPostEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(postUserRequest)
-		id, err := svc.UserPost(ctx, req.User)
+		req := request.(UserRequest)
+		id, err := svc.UserPost(ctx, req)
 		if err != nil {
 			return nil, err
 		}
@@ -32,17 +34,23 @@ func MakeUserPostEndpoint(svc Service) endpoint.Endpoint {
 	}
 }
 
-type postUserRequest struct {
-	User UserRequest
-}
-
-func (p postUserRequest) Validate() error {
-	return p.User.Validate()
-}
-
 type postResponse struct {
 	Id  string
 	Err error `json:"err,omitempty"`
 }
 
 func (r postResponse) error() error { return r.Err }
+
+// MakeCategoryPostEndpoint returns an endpoint via the passed service.
+func MakeCategoryPostEndpoint(svc Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(CategoryRequest)
+		id, err := svc.CategoryPost(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		return postResponse{
+			Id: id,
+		}, nil
+	}
+}

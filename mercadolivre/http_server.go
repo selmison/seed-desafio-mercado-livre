@@ -8,11 +8,9 @@ import (
 	"strconv"
 
 	"github.com/gorilla/handlers"
-	"github.com/jmoiron/sqlx"
 )
 
 type httpServer struct {
-	db     *sqlx.DB
 	logger Logger
 }
 
@@ -23,12 +21,8 @@ func NewHTTPServer(svc Service, logger Logger, config *Config) error {
 	if err != nil {
 		return err
 	}
-	dbx := sqlx.NewDb(config.DB, config.DriverName)
-	if err := dbx.Ping(); err != nil {
-		return err
-	}
+
 	srv := &httpServer{
-		db:     dbx,
 		logger: logger,
 	}
 	router := srv.MakeHTTPHandler(svc)

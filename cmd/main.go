@@ -23,10 +23,8 @@ func main() {
 	}
 
 	if err := mercadolivre.NewHTTPServer(svc, logger, &mercadolivre.Config{
-		Host:       "localhost",
-		Port:       3333,
-		DB:         db,
-		DriverName: driverName,
+		Host: "localhost",
+		Port: 3333,
 	}); err != nil {
 		log.Fatal(fmt.Sprintf("Error starting http server: %s", err))
 	}

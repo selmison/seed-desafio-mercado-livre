@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -52,9 +53,9 @@ func ShouldBeFuture(fl validator.FieldLevel) bool {
 }
 
 // ShouldBeUnique validates if the current field value is unique in the repository.
-func (s service) ShouldBeUnique(fl validator.FieldLevel) bool {
+func (s *service) ShouldBeUnique(fl validator.FieldLevel) bool {
 	field := fl.Field()
-	fieldName := fl.FieldName()
+	fieldName := strings.ToLower(fl.FieldName())
 	var fieldValue string
 	if field.Kind() == reflect.String {
 		fieldValue = field.String()
@@ -62,13 +63,21 @@ func (s service) ShouldBeUnique(fl validator.FieldLevel) bool {
 		return false
 	}
 
-	query := fmt.Sprintf(`SELECT %s FROM users WHERE %s=$1`, fieldName, fieldName)
-	stmt, err := s.db.Prepare(query)
+	var table string
+	switch fl.Top().Type().Name() {
+	case "CategoryRequest":
+		table = "categories"
+	case "UserRequest":
+		table = "users"
+	}
+	query := fmt.Sprintf(`SELECT * FROM %s WHERE %s=$1`, table, fieldName)
+	stmt, err := s.db.Preparex(query)
 	if err != nil {
 		return false
 	}
-	v := field.Interface()
-	err = stmt.QueryRow(fieldValue).Scan(&v)
+
+	m := make(map[string]interface{})
+	err = stmt.QueryRowx(fieldValue).MapScan(m)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return true
