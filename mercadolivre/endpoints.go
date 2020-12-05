@@ -8,23 +8,29 @@ import (
 
 // Endpoints collects all of the endpoints.
 type Endpoints struct {
-	UserPostEndpoint     endpoint.Endpoint
+	LoginPostEndpoint    endpoint.Endpoint
 	CategoryPostEndpoint endpoint.Endpoint
+	UserPostEndpoint     endpoint.Endpoint
 }
 
 // MakeServerEndpoints returns an Endpoints struct.
 func MakeServerEndpoints(svc Service) Endpoints {
 	return Endpoints{
-		UserPostEndpoint:     ValidationMiddleware()(MakeUserPostEndpoint(svc)),
+		LoginPostEndpoint:    ValidationMiddleware()(MakeLoginEndpoint(svc)),
 		CategoryPostEndpoint: ValidationMiddleware()(MakeCategoryPostEndpoint(svc)),
+		UserPostEndpoint:     ValidationMiddleware()(MakeUserPostEndpoint(svc)),
 	}
 }
 
-// MakeUserPostEndpoint returns an endpoint via the passed service.
-func MakeUserPostEndpoint(svc Service) endpoint.Endpoint {
+type postResponse struct {
+	Id string
+}
+
+// MakeCategoryPostEndpoint returns an endpoint via the passed service.
+func MakeCategoryPostEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(UserRequest)
-		id, err := svc.UserPost(ctx, req)
+		req := request.(CategoryRequest)
+		id, err := svc.CategoryPost(ctx, req)
 		if err != nil {
 			return nil, err
 		}
@@ -34,18 +40,23 @@ func MakeUserPostEndpoint(svc Service) endpoint.Endpoint {
 	}
 }
 
-type postResponse struct {
-	Id  string
-	Err error `json:"err,omitempty"`
+// MakeLoginEndpoint returns an endpoint via the passed service.
+func MakeLoginEndpoint(svc Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(LoginRequest)
+		res, err := svc.Login(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+	}
 }
 
-func (r postResponse) error() error { return r.Err }
-
-// MakeCategoryPostEndpoint returns an endpoint via the passed service.
-func MakeCategoryPostEndpoint(svc Service) endpoint.Endpoint {
+// MakeUserPostEndpoint returns an endpoint via the passed service.
+func MakeUserPostEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(CategoryRequest)
-		id, err := svc.CategoryPost(ctx, req)
+		req := request.(UserRequest)
+		id, err := svc.UserPost(ctx, req)
 		if err != nil {
 			return nil, err
 		}

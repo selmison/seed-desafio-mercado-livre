@@ -2,10 +2,8 @@ package mercadolivre
 
 import (
 	"context"
-	"strings"
 	"time"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
@@ -24,39 +22,24 @@ type UserResponse struct {
 
 // Validate validates UserRequest.
 func (u UserRequest) Validate() error {
-	err := validate.Struct(u)
-	var errs ValidationErrorsResponse
-	if err != nil {
-		if fieldError, ok := err.(validator.ValidationErrors); ok {
-			for _, v := range fieldError {
-				element := ValidationErrorResponse{
-					FailedField: strings.ToLower(v.StructNamespace()),
-					Condition:   v.Tag(),
-					ActualValue: v.Value().(string),
-				}
-				errs = append(errs, &element)
-			}
-		}
-	}
-	if err != nil {
-		return errs
-	}
-	return nil
+	return Validate(u)
 }
 
 // User represents a single user.
 // ID should be globally unique.
 type User struct {
+	ID        string
 	Name      string
 	Password  string
-	CreatedAt time.Time
+	CreatedAt time.Time `db:"created_at"`
 }
 
 // UserPost creates user.
 func (s *service) UserPost(ctx context.Context, user UserRequest) (string, error) {
 	stmt, err := s.db.Prepare("INSERT INTO users (id, name, password, created_at) VALUES ($1, $2, $3, $4)")
+	msgError := "service.user_post"
 	if err != nil {
-		return "", errors.Wrap(err, "service.post_user")
+		return "", errors.Wrap(err, msgError)
 	}
 	now := time.Now()
 	layout := "2006-01-02 15:04:05"
@@ -64,7 +47,7 @@ func (s *service) UserPost(ctx context.Context, user UserRequest) (string, error
 	var hash string
 	hash, err = hashPassword(user.Password)
 	if err != nil {
-		return "", errors.Wrap(err, "service.post_user")
+		return "", errors.Wrap(err, msgError)
 	}
 	_, err = stmt.Exec(
 		id,
@@ -72,7 +55,7 @@ func (s *service) UserPost(ctx context.Context, user UserRequest) (string, error
 		hash,
 		now.Format(layout))
 	if err != nil {
-		return "", errors.Wrap(err, "service.post_user")
+		return "", errors.Wrap(err, msgError)
 	}
 	return id, nil
 }

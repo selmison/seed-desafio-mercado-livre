@@ -15,8 +15,8 @@ type httpServer struct {
 }
 
 // NewHTTPServer starts new HTTP server
-func NewHTTPServer(svc Service, logger Logger, config *Config) error {
-	addr := net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
+func NewHTTPServer(cfg Config, svc Service, logger Logger) error {
+	addr := net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
 	lnAddr, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
 		return err

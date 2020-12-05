@@ -16,16 +16,19 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialize db: %v\n", err)
 	}
+	cfg := mercadolivre.Config{
+		Host:       "localhost",
+		Port:       3333,
+		DriverName: driverName,
+		DB:         db,
+	}
 
-	svc, err := mercadolivre.NewService(db, "postgres", logger)
+	svc, err := mercadolivre.NewService(cfg, logger)
 	if err != nil {
 		log.Fatalf("failed to initialize service: %v\n", err)
 	}
 
-	if err := mercadolivre.NewHTTPServer(svc, logger, &mercadolivre.Config{
-		Host: "localhost",
-		Port: 3333,
-	}); err != nil {
+	if err := mercadolivre.NewHTTPServer(cfg, svc, logger); err != nil {
 		log.Fatal(fmt.Sprintf("Error starting http server: %s", err))
 	}
 }

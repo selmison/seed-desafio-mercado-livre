@@ -19,21 +19,18 @@ func (srv *httpServer) MakeHTTPHandler(svc Service) http.Handler {
 	e := MakeServerEndpoints(svc)
 	errorHandler := func(ctx context.Context, err error) {
 		if _, ok := err.(ValidationErrorsResponse); !ok {
-			st := srv.retrievStackTrace(err)
-			srv.logger.Errorf("%s%+v", err, st)
+			if errors.Is(err, ErrLoginFailed) {
+				srv.logger.Warn(err)
+			} else {
+				st := srv.retrieveStackTrace(err)
+				srv.logger.Errorf("%s%+v", err, st)
+			}
 		}
 	}
 	options := []httptransport.ServerOption{
 		httptransport.ServerErrorHandler(transport.ErrorHandlerFunc(errorHandler)),
 		httptransport.ServerErrorEncoder(encodeError),
 	}
-
-	r.Methods("POST").Path("/users").Handler(httptransport.NewServer(
-		e.UserPostEndpoint,
-		decodeUserPostRequest,
-		encodePostResponse,
-		options...,
-	))
 
 	r.Methods("POST").Path("/categories").Handler(httptransport.NewServer(
 		e.CategoryPostEndpoint,
@@ -42,15 +39,21 @@ func (srv *httpServer) MakeHTTPHandler(svc Service) http.Handler {
 		options...,
 	))
 
-	return r
-}
+	r.Methods("POST").Path("/login").Handler(httptransport.NewServer(
+		e.LoginPostEndpoint,
+		decodeLoginPostRequest,
+		encodeLoginResponse,
+		options...,
+	))
 
-func decodeUserPostRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
-	var req UserRequest
-	if e := json.NewDecoder(r.Body).Decode(&req); e != nil {
-		return nil, e
-	}
-	return req, nil
+	r.Methods("POST").Path("/users").Handler(httptransport.NewServer(
+		e.UserPostEndpoint,
+		decodeUserPostRequest,
+		encodePostResponse,
+		options...,
+	))
+
+	return r
 }
 
 func decodeCategoryPostRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
@@ -61,18 +64,34 @@ func decodeCategoryPostRequest(_ context.Context, r *http.Request) (request inte
 	return req, nil
 }
 
-// errorer is implemented by all concrete response types that may contain
-// errors. It allows us to change the HTTP response code without needing to
-// trigger an endpoint (transport-level) error.
-type errorer interface {
-	error() error
+func decodeLoginPostRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
+	var req LoginRequest
+	if e := json.NewDecoder(r.Body).Decode(&req); e != nil {
+		return nil, e
+	}
+	return req, nil
+}
+
+func decodeUserPostRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
+	var req UserRequest
+	if e := json.NewDecoder(r.Body).Decode(&req); e != nil {
+		return nil, e
+	}
+	return req, nil
+}
+
+func encodeLoginResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	login := response.(LoginResponse)
+	http.SetCookie(w,
+		&http.Cookie{
+			Name:    "token",
+			Value:   login.Token,
+			Expires: login.ExpiresAt,
+		})
+	return nil
 }
 
 func encodePostResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	if e, ok := response.(errorer); ok && e.error() != nil {
-		encodeError(ctx, e.error(), w)
-		return nil
-	}
 	id := fmt.Sprintf("/%s", response.(postResponse).Id)
 	w.Header().Set("Location", id)
 	w.WriteHeader(http.StatusCreated)
@@ -84,7 +103,8 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		panic("encodeError with nil error")
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(codeFrom(err))
+	statusCode := codeFrom(err)
+	w.WriteHeader(statusCode)
 	if e, ok := err.(ValidationErrorsResponse); ok {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"msg":    e.Error(),
@@ -93,7 +113,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		return
 	}
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"error": http.StatusText(http.StatusInternalServerError),
+		"error": http.StatusText(statusCode),
 	})
 }
 
@@ -101,15 +121,17 @@ func codeFrom(err error) int {
 	if _, ok := err.(ValidationErrorsResponse); ok {
 		return http.StatusBadRequest
 	}
-	switch err {
-	case ErrNotFound:
+	if errors.Is(err, ErrNotFound) {
 		return http.StatusNotFound
-	default:
-		return http.StatusInternalServerError
 	}
+	if errors.Is(err, ErrLoginFailed) {
+		return http.StatusUnauthorized
+	}
+
+	return http.StatusInternalServerError
 }
 
-func (srv *httpServer) retrievStackTrace(err error) errors.StackTrace {
+func (srv *httpServer) retrieveStackTrace(err error) errors.StackTrace {
 	type stackTracer interface {
 		StackTrace() errors.StackTrace
 	}

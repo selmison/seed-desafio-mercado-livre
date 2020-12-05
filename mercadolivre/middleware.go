@@ -6,7 +6,7 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
-// ValidationMiddleware valides the requests
+// ValidationMiddleware valides the requests.
 func ValidationMiddleware() endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
@@ -14,6 +14,15 @@ func ValidationMiddleware() endpoint.Middleware {
 			if err := req.Validate(); err != nil {
 				return nil, err
 			}
+			return next(ctx, request)
+		}
+	}
+}
+
+// JWTMiddleware authenticates the login.
+func (srv *httpServer) JWTMiddleware() endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 			return next(ctx, request)
 		}
 	}

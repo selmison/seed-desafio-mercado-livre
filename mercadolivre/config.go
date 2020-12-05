@@ -8,7 +8,7 @@ type Config struct {
 	Host string
 	// Port defines the network port we bind to.
 	Port int
-	// DB defines the DB we connect to.
+	// DB contains the DB we connect to.
 	DB *sql.DB
 	// DriverName defines the database driver name.
 	DriverName string

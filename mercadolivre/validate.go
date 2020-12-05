@@ -1,8 +1,6 @@
 package mercadolivre
 
 import (
-	"database/sql"
-	"fmt"
 	"log"
 	"reflect"
 	"strings"
@@ -10,7 +8,6 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/go-playground/validator/v10/non-standard/validators"
-	"github.com/pkg/errors"
 )
 
 var validate *validator.Validate
@@ -20,12 +17,16 @@ func init() {
 	if err := validate.RegisterValidation("not_blank", validators.NotBlank); err != nil {
 		log.Fatalln(err)
 	}
-	if err := validate.RegisterValidation("should_be_future", ShouldBeFuture); err != nil {
+	if err := validate.RegisterValidation("should_be_future", shouldBeFuture); err != nil {
 		log.Fatalln(err)
 	}
 }
 
 type ValidationErrorsResponse []*ValidationErrorResponse
+
+func (v ValidationErrorsResponse) Error() string {
+	return ErrValidationFailed.Error()
+}
 
 type ValidationErrorResponse struct {
 	FailedField string `json:"failed_field"`
@@ -33,12 +34,30 @@ type ValidationErrorResponse struct {
 	ActualValue string `json:"actual_value"`
 }
 
-func (v ValidationErrorsResponse) Error() string {
-	return ErrValidationFailed.Error()
+//Validate validates a struct
+func Validate(iface interface{}) error {
+	err := validate.Struct(iface)
+	var errs ValidationErrorsResponse
+	if err != nil {
+		if fieldError, ok := err.(validator.ValidationErrors); ok {
+			for _, v := range fieldError {
+				element := ValidationErrorResponse{
+					FailedField: strings.ToLower(v.StructNamespace()),
+					Condition:   v.Tag(),
+					ActualValue: v.Value().(string),
+				}
+				errs = append(errs, &element)
+			}
+		}
+	}
+	if err != nil {
+		return errs
+	}
+	return nil
 }
 
-// ShouldBeFuture validates if the current field is time.Time and is after time.Now().
-func ShouldBeFuture(fl validator.FieldLevel) bool {
+// shouldBeFuture validates if the current field is time.Time and is after time.Now().
+func shouldBeFuture(fl validator.FieldLevel) bool {
 	field := fl.Field()
 
 	if field.Kind() == reflect.Struct {
@@ -47,40 +66,6 @@ func ShouldBeFuture(fl validator.FieldLevel) bool {
 			if now.Before(v) {
 				return true
 			}
-		}
-	}
-	return false
-}
-
-// ShouldBeUnique validates if the current field value is unique in the repository.
-func (s *service) ShouldBeUnique(fl validator.FieldLevel) bool {
-	field := fl.Field()
-	fieldName := strings.ToLower(fl.FieldName())
-	var fieldValue string
-	if field.Kind() == reflect.String {
-		fieldValue = field.String()
-	} else {
-		return false
-	}
-
-	var table string
-	switch fl.Top().Type().Name() {
-	case "CategoryRequest":
-		table = "categories"
-	case "UserRequest":
-		table = "users"
-	}
-	query := fmt.Sprintf(`SELECT * FROM %s WHERE %s=$1`, table, fieldName)
-	stmt, err := s.db.Preparex(query)
-	if err != nil {
-		return false
-	}
-
-	m := make(map[string]interface{})
-	err = stmt.QueryRowx(fieldValue).MapScan(m)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return true
 		}
 	}
 	return false

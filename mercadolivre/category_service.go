@@ -2,9 +2,7 @@ package mercadolivre
 
 import (
 	"context"
-	"strings"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
@@ -20,24 +18,7 @@ type CategoryResponse struct {
 
 // Validate validates CategoryRequest.
 func (c CategoryRequest) Validate() error {
-	err := validate.Struct(c)
-	var errs ValidationErrorsResponse
-	if err != nil {
-		if fieldError, ok := err.(validator.ValidationErrors); ok {
-			for _, v := range fieldError {
-				element := ValidationErrorResponse{
-					FailedField: strings.ToLower(v.StructNamespace()),
-					Condition:   v.Tag(),
-					ActualValue: v.Value().(string),
-				}
-				errs = append(errs, &element)
-			}
-		}
-	}
-	if err != nil {
-		return errs
-	}
-	return nil
+	return Validate(c)
 }
 
 // Category represents a single Category.
@@ -50,8 +31,9 @@ type Category struct {
 // CategoryPost creates category.
 func (s *service) CategoryPost(ctx context.Context, category CategoryRequest) (string, error) {
 	stmt, err := s.db.Prepare("INSERT INTO categories (id, name) VALUES ($1, $2)")
+	msgError := "service.category_post"
 	if err != nil {
-		return "", errors.Wrap(err, "service.post_category")
+		return "", errors.Wrap(err, msgError)
 	}
 	id := uuid.New().String()
 	_, err = stmt.Exec(
@@ -59,7 +41,7 @@ func (s *service) CategoryPost(ctx context.Context, category CategoryRequest) (s
 		category.Name,
 	)
 	if err != nil {
-		return "", errors.Wrap(err, "service.post_category")
+		return "", errors.Wrap(err, msgError)
 	}
 	return id, nil
 }
