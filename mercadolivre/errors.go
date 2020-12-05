@@ -12,6 +12,6 @@ var (
 	ErrNotFound         = errors.New("not found")
 	ErrShouldBeFuture   = errors.New("should be in the future")
 	ErrShouldBeUnique   = errors.New("should be unique")
-	ErrLoginFailed      = errors.New("login failed")
+	ErrAuthFailed       = errors.New("authentication failed")
 	ErrValidationFailed = errors.New("validation failed")
 )

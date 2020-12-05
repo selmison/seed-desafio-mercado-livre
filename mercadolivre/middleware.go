@@ -19,7 +19,7 @@ func ValidationMiddleware() endpoint.Middleware {
 	}
 }
 
-// JWTMiddleware authenticates the login.
+// JWTMiddleware authenticates the user.
 func (srv *httpServer) JWTMiddleware() endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, request interface{}) (response interface{}, err error) {

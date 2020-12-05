@@ -19,7 +19,7 @@ func (srv *httpServer) MakeHTTPHandler(svc Service) http.Handler {
 	e := MakeServerEndpoints(svc)
 	errorHandler := func(ctx context.Context, err error) {
 		if _, ok := err.(ValidationErrorsResponse); !ok {
-			if errors.Is(err, ErrLoginFailed) {
+			if errors.Is(err, ErrAuthFailed) {
 				srv.logger.Warn(err)
 			} else {
 				st := srv.retrieveStackTrace(err)
@@ -39,10 +39,10 @@ func (srv *httpServer) MakeHTTPHandler(svc Service) http.Handler {
 		options...,
 	))
 
-	r.Methods("POST").Path("/login").Handler(httptransport.NewServer(
-		e.LoginPostEndpoint,
-		decodeLoginPostRequest,
-		encodeLoginResponse,
+	r.Methods("POST").Path("/auth").Handler(httptransport.NewServer(
+		e.AuthEndpoint,
+		decodeAuthPostRequest,
+		encodeAuthResponse,
 		options...,
 	))
 
@@ -64,8 +64,8 @@ func decodeCategoryPostRequest(_ context.Context, r *http.Request) (request inte
 	return req, nil
 }
 
-func decodeLoginPostRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
-	var req LoginRequest
+func decodeAuthPostRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
+	var req AuthRequest
 	if e := json.NewDecoder(r.Body).Decode(&req); e != nil {
 		return nil, e
 	}
@@ -80,13 +80,13 @@ func decodeUserPostRequest(_ context.Context, r *http.Request) (request interfac
 	return req, nil
 }
 
-func encodeLoginResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	login := response.(LoginResponse)
+func encodeAuthResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	auth := response.(AuthResponse)
 	http.SetCookie(w,
 		&http.Cookie{
 			Name:    "token",
-			Value:   login.Token,
-			Expires: login.ExpiresAt,
+			Value:   auth.Token,
+			Expires: auth.ExpiresAt,
 		})
 	return nil
 }
@@ -124,7 +124,7 @@ func codeFrom(err error) int {
 	if errors.Is(err, ErrNotFound) {
 		return http.StatusNotFound
 	}
-	if errors.Is(err, ErrLoginFailed) {
+	if errors.Is(err, ErrAuthFailed) {
 		return http.StatusUnauthorized
 	}
 
