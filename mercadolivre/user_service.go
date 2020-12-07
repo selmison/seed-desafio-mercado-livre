@@ -16,6 +16,7 @@ type UserRequest struct {
 }
 
 type UserResponse struct {
+	ID        string
 	Name      string
 	CreatedAt time.Time
 }

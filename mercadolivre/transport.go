@@ -32,6 +32,13 @@ func (srv *httpServer) MakeHTTPHandler(svc Service) http.Handler {
 		httptransport.ServerErrorEncoder(encodeError),
 	}
 
+	r.Methods("POST").Path("/auth").Handler(httptransport.NewServer(
+		e.AuthEndpoint,
+		decodeAuthPostRequest,
+		encodeAuthResponse,
+		options...,
+	))
+
 	r.Methods("POST").Path("/categories").Handler(httptransport.NewServer(
 		e.CategoryPostEndpoint,
 		decodeCategoryPostRequest,
@@ -39,10 +46,10 @@ func (srv *httpServer) MakeHTTPHandler(svc Service) http.Handler {
 		options...,
 	))
 
-	r.Methods("POST").Path("/auth").Handler(httptransport.NewServer(
-		e.AuthEndpoint,
-		decodeAuthPostRequest,
-		encodeAuthResponse,
+	r.Methods("POST").Path("/reauth").Handler(httptransport.NewServer(
+		e.ReAuthEndpoint,
+		decodeReAuthPostRequest,
+		encodeReAuthResponse,
 		options...,
 	))
 
@@ -56,6 +63,15 @@ func (srv *httpServer) MakeHTTPHandler(svc Service) http.Handler {
 	return r
 }
 
+func decodeAuthPostRequest(ctx context.Context, r *http.Request) (request interface{}, err error) {
+	r = r.WithContext(ctx)
+	var req AuthRequest
+	if e := json.NewDecoder(r.Body).Decode(&req); e != nil {
+		return nil, e
+	}
+	return req, nil
+}
+
 func decodeCategoryPostRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
 	var req CategoryRequest
 	if e := json.NewDecoder(r.Body).Decode(&req); e != nil {
@@ -64,12 +80,23 @@ func decodeCategoryPostRequest(_ context.Context, r *http.Request) (request inte
 	return req, nil
 }
 
-func decodeAuthPostRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
-	var req AuthRequest
+func decodeReAuthPostRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
+	var req ReAuthRequest
 	if e := json.NewDecoder(r.Body).Decode(&req); e != nil {
 		return nil, e
 	}
 	return req, nil
+}
+
+func encodeAuthResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	auth := response.(*AuthResponse)
+	http.SetCookie(w,
+		&http.Cookie{
+			Name:    "token",
+			Value:   auth.TknStr,
+			Expires: auth.ExpiresAt,
+		})
+	return nil
 }
 
 func decodeUserPostRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
@@ -80,12 +107,12 @@ func decodeUserPostRequest(_ context.Context, r *http.Request) (request interfac
 	return req, nil
 }
 
-func encodeAuthResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	auth := response.(AuthResponse)
+func encodeReAuthResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	auth := response.(*AuthResponse)
 	http.SetCookie(w,
 		&http.Cookie{
 			Name:    "token",
-			Value:   auth.Token,
+			Value:   auth.TknStr,
 			Expires: auth.ExpiresAt,
 		})
 	return nil

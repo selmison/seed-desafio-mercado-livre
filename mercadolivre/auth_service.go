@@ -18,16 +18,16 @@ type AuthRequest struct {
 }
 
 type AuthResponse struct {
-	Token     string
+	TknStr    string `json:"token"`
 	ExpiresAt time.Time
 }
 
 // Validate validates AuthRequest.
-func (l AuthRequest) Validate() error {
-	return Validate(l)
+func (a AuthRequest) Validate() error {
+	return Validate(a)
 }
 
-// Auth authenticates a auth.
+// Auth authenticates a user.
 func (s *service) Auth(ctx context.Context, req AuthRequest) (*AuthResponse, error) {
 	stmt, err := s.db.Preparex(`SELECT * FROM users WHERE name=$1`)
 	msgError := "service.auth"
@@ -62,18 +62,18 @@ func (s *service) Auth(ctx context.Context, req AuthRequest) (*AuthResponse, err
 
 func createToken(userID, jwtSecretKey string) (*AuthResponse, error) {
 	var err error
-	expiresAt := time.Now().Add(time.Minute * 15)
+	expiresAt := time.Now().Add(time.Minute * 5)
 	claims := jwt.StandardClaims{
 		ExpiresAt: expiresAt.Unix(),
 		Id:        userID,
 	}
 	at := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	token, err := at.SignedString([]byte(jwtSecretKey))
+	tknStr, err := at.SignedString([]byte(jwtSecretKey))
 	if err != nil {
 		return nil, err
 	}
 	return &AuthResponse{
-		Token:     token,
+		TknStr:    tknStr,
 		ExpiresAt: expiresAt,
 	}, nil
 }

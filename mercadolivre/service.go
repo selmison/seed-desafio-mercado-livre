@@ -19,8 +19,9 @@ type Request interface {
 
 // Service is a simple CRUD interface for user.
 type Service interface {
-	CategoryPost(ctx context.Context, req CategoryRequest) (id string, err error)
 	Auth(ctx context.Context, req AuthRequest) (*AuthResponse, error)
+	CategoryPost(ctx context.Context, req CategoryRequest) (id string, err error)
+	ReAuth(ctx context.Context, req ReAuthRequest) (*AuthResponse, error)
 	UserPost(ctx context.Context, req UserRequest) (id string, err error)
 }
 

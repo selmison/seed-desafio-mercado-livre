@@ -10,6 +10,7 @@ import (
 type Endpoints struct {
 	AuthEndpoint         endpoint.Endpoint
 	CategoryPostEndpoint endpoint.Endpoint
+	ReAuthEndpoint       endpoint.Endpoint
 	UserPostEndpoint     endpoint.Endpoint
 }
 
@@ -18,12 +19,25 @@ func MakeServerEndpoints(svc Service) Endpoints {
 	return Endpoints{
 		AuthEndpoint:         ValidationMiddleware()(MakeAuthEndpoint(svc)),
 		CategoryPostEndpoint: ValidationMiddleware()(MakeCategoryPostEndpoint(svc)),
+		ReAuthEndpoint:       ValidationMiddleware()(MakeReAuthEndpoint(svc)),
 		UserPostEndpoint:     ValidationMiddleware()(MakeUserPostEndpoint(svc)),
 	}
 }
 
 type postResponse struct {
 	Id string
+}
+
+// MakeAuthEndpoint returns an endpoint via the passed service.
+func MakeAuthEndpoint(svc Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(AuthRequest)
+		res, err := svc.Auth(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+	}
 }
 
 // MakeCategoryPostEndpoint returns an endpoint via the passed service.
@@ -40,11 +54,11 @@ func MakeCategoryPostEndpoint(svc Service) endpoint.Endpoint {
 	}
 }
 
-// MakeAuthEndpoint returns an endpoint via the passed service.
-func MakeAuthEndpoint(svc Service) endpoint.Endpoint {
+// MakeReAuthEndpoint returns an endpoint via the passed service.
+func MakeReAuthEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(AuthRequest)
-		res, err := svc.Auth(ctx, req)
+		req := request.(ReAuthRequest)
+		res, err := svc.ReAuth(ctx, req)
 		if err != nil {
 			return nil, err
 		}
