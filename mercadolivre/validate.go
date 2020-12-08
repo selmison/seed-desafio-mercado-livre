@@ -29,7 +29,7 @@ func (v ValidationErrorsResponse) Error() string {
 }
 
 type ValidationErrorResponse struct {
-	FailedField string `json:"failed_field"`
+	FailedField string `json:"failed_field,omitempty"`
 	Condition   string `json:"condition"`
 	ActualValue string `json:"actual_value,omitempty"`
 }

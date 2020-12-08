@@ -24,7 +24,7 @@ func MakeServerEndpoints(svc Service) Endpoints {
 	return Endpoints{
 		AuthEndpoint:         ValidationMdlwr()(MakeAuthEndpoint(svc)),
 		CategoryPostEndpoint: AuthMdlwr(ValidationMdlwr()(MakeCategoryPostEndpoint(svc))),
-		ReAuthEndpoint:       ValidationMdlwr()(MakeReAuthEndpoint(svc)),
+		ReAuthEndpoint:       (MakeReAuthEndpoint(svc)),
 		UserPostEndpoint:     ValidationMdlwr()(MakeUserPostEndpoint(svc)),
 	}
 }
@@ -62,8 +62,7 @@ func MakeCategoryPostEndpoint(svc Service) endpoint.Endpoint {
 // MakeReAuthEndpoint returns an endpoint via the passed service.
 func MakeReAuthEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(ReAuthRequest)
-		res, err := svc.ReAuth(ctx, req)
+		res, err := svc.ReAuth(ctx)
 		if err != nil {
 			return nil, err
 		}

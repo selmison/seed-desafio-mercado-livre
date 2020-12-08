@@ -21,7 +21,7 @@ type Request interface {
 type Service interface {
 	Auth(ctx context.Context, req AuthRequest) (*AuthResponse, error)
 	CategoryPost(ctx context.Context, req CategoryRequest) (id string, err error)
-	ReAuth(ctx context.Context, req ReAuthRequest) (*AuthResponse, error)
+	ReAuth(ctx context.Context) (*AuthResponse, error)
 	UserPost(ctx context.Context, req UserRequest) (id string, err error)
 }
 

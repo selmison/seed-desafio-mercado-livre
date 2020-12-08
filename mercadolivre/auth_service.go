@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	jwtKit "github.com/go-kit/kit/auth/jwt"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
@@ -17,14 +18,14 @@ type AuthRequest struct {
 	Password string `validate:"required,not_blank,min=6"`
 }
 
-type AuthResponse struct {
-	TknStr    string `json:"token"`
-	ExpiresAt time.Time
-}
-
 // Validate validates AuthRequest.
 func (a AuthRequest) Validate() error {
 	return Validate(a)
+}
+
+type AuthResponse struct {
+	TknStr    string `json:"token"`
+	ExpiresAt time.Time
 }
 
 // Auth authenticates a user.
@@ -72,6 +73,63 @@ func createToken(userID, jwtSecretKey string) (*AuthResponse, error) {
 	if err != nil {
 		return nil, err
 	}
+	return &AuthResponse{
+		TknStr:    tknStr,
+		ExpiresAt: expiresAt,
+	}, nil
+}
+
+// ReAuth reauthenticates a user.
+func (s *service) ReAuth(ctx context.Context) (*AuthResponse, error) {
+	msgError := "service.re_auth"
+
+	tknStr, ok := ctx.Value(jwtKit.JWTTokenContextKey).(string)
+	if !ok {
+		return nil, ValidationErrorsResponse{
+			&ValidationErrorResponse{
+				Condition: ErrMissingToken.Error(),
+			},
+		}
+	}
+
+	claims := &jwt.StandardClaims{}
+	var tkn *jwt.Token
+	tkn, err := jwt.ParseWithClaims(tknStr, claims, func(token *jwt.Token) (interface{}, error) {
+		return []byte("myJWTSecretKey"), nil
+	})
+	if err != nil {
+		if err == jwt.ErrSignatureInvalid {
+			return nil, errors.Wrap(fmt.Errorf("%w: %v", ErrAuthFailed, err), msgError)
+		}
+		return nil, ValidationErrorsResponse{
+			&ValidationErrorResponse{
+				Condition: err.Error(),
+			},
+		}
+	}
+	if !tkn.Valid {
+		return nil, errors.Wrap(fmt.Errorf("%w: %v", ErrAuthFailed, "token should be valid"), msgError)
+	}
+
+	until := time.Until(time.Unix(claims.ExpiresAt, 0))
+	if until > 30*time.Second {
+		return nil, ValidationErrorsResponse{
+			&ValidationErrorResponse{
+				Condition:   "elapsed_time should be less than 30s",
+				ActualValue: until.String(),
+			},
+		}
+	}
+
+	expiresAt := time.Now().Add(5 * time.Minute)
+	claims.ExpiresAt = expiresAt.Unix()
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tknStr, err = token.SignedString([]byte("myJWTSecretKey"))
+	if err != nil {
+		err := fmt.Errorf("%w: %v", ErrInternalServer, err)
+		return nil, errors.Wrap(err, msgError)
+	}
+
 	return &AuthResponse{
 		TknStr:    tknStr,
 		ExpiresAt: expiresAt,

@@ -47,7 +47,7 @@ func (srv *httpServer) MakeHTTPHandler(svc Service) http.Handler {
 		options...,
 	))
 
-	r.Methods("POST").Path("/reauth").Handler(httptransport.NewServer(
+	r.Methods("GET").Path("/reauth").Handler(httptransport.NewServer(
 		e.ReAuthEndpoint,
 		decodeReAuthPostRequest,
 		encodeReAuthResponse,
@@ -82,11 +82,7 @@ func decodeCategoryPostRequest(_ context.Context, r *http.Request) (request inte
 }
 
 func decodeReAuthPostRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
-	var req ReAuthRequest
-	if e := json.NewDecoder(r.Body).Decode(&req); e != nil {
-		return nil, e
-	}
-	return req, nil
+	return nil, nil
 }
 
 func encodeAuthResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
