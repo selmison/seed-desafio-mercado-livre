@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-kit/kit/transport"
+	jwtKit "github.com/go-kit/kit/auth/jwt"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -17,19 +17,20 @@ import (
 func (srv *httpServer) MakeHTTPHandler(svc Service) http.Handler {
 	r := mux.NewRouter()
 	e := MakeServerEndpoints(svc)
-	errorHandler := func(ctx context.Context, err error) {
-		if _, ok := err.(ValidationErrorsResponse); !ok {
-			if errors.Is(err, ErrAuthFailed) {
-				srv.logger.Warn(err)
-			} else {
-				st := srv.retrieveStackTrace(err)
-				srv.logger.Errorf("%s%+v", err, st)
-			}
+
+	var jwtTokenRequestFunc httptransport.RequestFunc = func(ctx context.Context, r *http.Request) context.Context {
+		c, err := r.Cookie("token")
+		if err != nil {
+			return ctx
 		}
+
+		tknStr := c.Value
+		return context.WithValue(ctx, jwtKit.JWTTokenContextKey, tknStr)
 	}
+
 	options := []httptransport.ServerOption{
-		httptransport.ServerErrorHandler(transport.ErrorHandlerFunc(errorHandler)),
-		httptransport.ServerErrorEncoder(encodeError),
+		httptransport.ServerBefore(jwtTokenRequestFunc),
+		httptransport.ServerErrorEncoder(srv.encodeError),
 	}
 
 	r.Methods("POST").Path("/auth").Handler(httptransport.NewServer(
@@ -125,12 +126,12 @@ func encodePostResponse(ctx context.Context, w http.ResponseWriter, response int
 	return json.NewEncoder(w).Encode(response)
 }
 
-func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
+func (srv *httpServer) encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	if err == nil {
 		panic("encodeError with nil error")
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	statusCode := codeFrom(err)
+	statusCode := srv.logAndCodeFrom(err)
 	w.WriteHeader(statusCode)
 	if e, ok := err.(ValidationErrorsResponse); ok {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
@@ -144,27 +145,36 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	})
 }
 
-func codeFrom(err error) int {
+func (srv *httpServer) logAndCodeFrom(err error) int {
 	if _, ok := err.(ValidationErrorsResponse); ok {
 		return http.StatusBadRequest
 	}
+	if errors.Is(err, ErrAuthFailed) ||
+		errors.Is(err, jwtKit.ErrTokenContextMissing) ||
+		errors.Is(err, jwtKit.ErrUnexpectedSigningMethod) ||
+		errors.Is(err, jwtKit.ErrTokenMalformed) ||
+		errors.Is(err, jwtKit.ErrTokenExpired) ||
+		errors.Is(err, jwtKit.ErrTokenNotActive) {
+		srv.logger.Warn(err)
+		return http.StatusUnauthorized
+	}
+
+	srv.logStackTrace(err)
+
 	if errors.Is(err, ErrNotFound) {
 		return http.StatusNotFound
-	}
-	if errors.Is(err, ErrAuthFailed) {
-		return http.StatusUnauthorized
 	}
 
 	return http.StatusInternalServerError
 }
 
-func (srv *httpServer) retrieveStackTrace(err error) errors.StackTrace {
+func (srv *httpServer) logStackTrace(err error) {
 	type stackTracer interface {
 		StackTrace() errors.StackTrace
 	}
-	e, ok := err.(stackTracer)
-	if !ok {
-		srv.logger.Error("err does not implement stackTracer")
+	if e, ok := err.(stackTracer); ok {
+		srv.logger.Errorf("%s%+v", err, e.StackTrace())
+		return
 	}
-	return e.StackTrace()
+	srv.logger.Error(err)
 }

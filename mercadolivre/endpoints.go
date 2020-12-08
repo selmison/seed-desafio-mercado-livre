@@ -3,6 +3,8 @@ package mercadolivre
 import (
 	"context"
 
+	"github.com/dgrijalva/jwt-go"
+	jwtKit "github.com/go-kit/kit/auth/jwt"
 	"github.com/go-kit/kit/endpoint"
 )
 
@@ -16,11 +18,14 @@ type Endpoints struct {
 
 // MakeServerEndpoints returns an Endpoints struct.
 func MakeServerEndpoints(svc Service) Endpoints {
+	kf := func(token *jwt.Token) (interface{}, error) { return []byte("myJWTSecretKey"), nil }
+	AuthMdlwr := jwtKit.NewParser(kf, jwt.SigningMethodHS256, jwtKit.StandardClaimsFactory)
+
 	return Endpoints{
-		AuthEndpoint:         ValidationMiddleware()(MakeAuthEndpoint(svc)),
-		CategoryPostEndpoint: ValidationMiddleware()(MakeCategoryPostEndpoint(svc)),
-		ReAuthEndpoint:       ValidationMiddleware()(MakeReAuthEndpoint(svc)),
-		UserPostEndpoint:     ValidationMiddleware()(MakeUserPostEndpoint(svc)),
+		AuthEndpoint:         ValidationMdlwr()(MakeAuthEndpoint(svc)),
+		CategoryPostEndpoint: AuthMdlwr(ValidationMdlwr()(MakeCategoryPostEndpoint(svc))),
+		ReAuthEndpoint:       ValidationMdlwr()(MakeReAuthEndpoint(svc)),
+		UserPostEndpoint:     ValidationMdlwr()(MakeUserPostEndpoint(svc)),
 	}
 }
 

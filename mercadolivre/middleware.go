@@ -6,8 +6,8 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
-// ValidationMiddleware valides the requests.
-func ValidationMiddleware() endpoint.Middleware {
+// ValidationMdlwr valides the requests.
+func ValidationMdlwr() endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 			req := request.(Request)
