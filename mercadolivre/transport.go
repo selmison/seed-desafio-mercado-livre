@@ -47,6 +47,13 @@ func (srv *httpServer) MakeHTTPHandler(svc Service) http.Handler {
 		options...,
 	))
 
+	r.Methods("POST").Path("/products").Handler(httptransport.NewServer(
+		e.ProductPostEndpoint,
+		decodeProductPostRequest,
+		encodePostResponse,
+		options...,
+	))
+
 	r.Methods("GET").Path("/reauth").Handler(httptransport.NewServer(
 		e.ReAuthEndpoint,
 		decodeReAuthPostRequest,
@@ -96,6 +103,14 @@ func encodeAuthResponse(ctx context.Context, w http.ResponseWriter, response int
 	return nil
 }
 
+func decodeProductPostRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
+	var req ProductRequest
+	if e := json.NewDecoder(r.Body).Decode(&req); e != nil {
+		return nil, e
+	}
+	return req, nil
+}
+
 func decodeUserPostRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
 	var req UserRequest
 	if e := json.NewDecoder(r.Body).Decode(&req); e != nil {
@@ -116,7 +131,7 @@ func encodeReAuthResponse(ctx context.Context, w http.ResponseWriter, response i
 }
 
 func encodePostResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	id := fmt.Sprintf("/%s", response.(postResponse).Id)
+	id := fmt.Sprintf("/%s", response.(postResponse).ID)
 	w.Header().Set("Location", id)
 	w.WriteHeader(http.StatusCreated)
 	return json.NewEncoder(w).Encode(response)

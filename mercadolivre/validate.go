@@ -41,10 +41,14 @@ func Validate(iface interface{}) error {
 	if err != nil {
 		if fieldError, ok := err.(validator.ValidationErrors); ok {
 			for _, v := range fieldError {
+				actualValue := ""
+				if vStr, ok := v.Value().(string); ok {
+					actualValue = vStr
+				}
 				element := ValidationErrorResponse{
 					FailedField: strings.ToLower(v.StructNamespace()),
 					Condition:   v.Tag(),
-					ActualValue: v.Value().(string),
+					ActualValue: actualValue,
 				}
 				errs = append(errs, &element)
 			}

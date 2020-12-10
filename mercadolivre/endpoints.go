@@ -12,6 +12,7 @@ import (
 type Endpoints struct {
 	AuthEndpoint         endpoint.Endpoint
 	CategoryPostEndpoint endpoint.Endpoint
+	ProductPostEndpoint  endpoint.Endpoint
 	ReAuthEndpoint       endpoint.Endpoint
 	UserPostEndpoint     endpoint.Endpoint
 }
@@ -24,13 +25,14 @@ func MakeServerEndpoints(svc Service) Endpoints {
 	return Endpoints{
 		AuthEndpoint:         ValidationMdlwr()(MakeAuthEndpoint(svc)),
 		CategoryPostEndpoint: AuthMdlwr(ValidationMdlwr()(MakeCategoryPostEndpoint(svc))),
+		ProductPostEndpoint:  AuthMdlwr(ValidationMdlwr()(MakeProductPostEndpoint(svc))),
 		ReAuthEndpoint:       (MakeReAuthEndpoint(svc)),
 		UserPostEndpoint:     ValidationMdlwr()(MakeUserPostEndpoint(svc)),
 	}
 }
 
 type postResponse struct {
-	Id string
+	ID string `json:"id"`
 }
 
 // MakeAuthEndpoint returns an endpoint via the passed service.
@@ -54,7 +56,7 @@ func MakeCategoryPostEndpoint(svc Service) endpoint.Endpoint {
 			return nil, err
 		}
 		return postResponse{
-			Id: id,
+			ID: id,
 		}, nil
 	}
 }
@@ -70,6 +72,20 @@ func MakeReAuthEndpoint(svc Service) endpoint.Endpoint {
 	}
 }
 
+// MakeProductPostEndpoint returns an endpoint via the passed service.
+func MakeProductPostEndpoint(svc Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(ProductRequest)
+		id, err := svc.ProductPost(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		return postResponse{
+			ID: id,
+		}, nil
+	}
+}
+
 // MakeUserPostEndpoint returns an endpoint via the passed service.
 func MakeUserPostEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
@@ -79,7 +95,7 @@ func MakeUserPostEndpoint(svc Service) endpoint.Endpoint {
 			return nil, err
 		}
 		return postResponse{
-			Id: id,
+			ID: id,
 		}, nil
 	}
 }
